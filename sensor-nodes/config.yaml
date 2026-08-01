@@ -1,0 +1,53 @@
+# Virtual sensor node configuration.
+# Each entry spawns one simulated sensor node/process.
+
+broker:
+  host: "mosquitto"
+  port: 8883
+  use_tls: true
+  ca_cert: "/certs/ca.crt"
+  username_env: "MQTT_SENSOR_USERNAME"
+  password_env: "MQTT_SENSOR_PASSWORD"
+
+publish_interval_seconds: 5
+
+nodes:
+  - id: "temp-line1"
+    type: "temperature"
+    topic: "factory/line1/temperature"
+    unit: "C"
+    baseline: 65.0
+    noise_stddev: 0.8
+    drift_per_tick: 0.02
+    min_value: 10.0
+    max_value: 120.0
+
+  - id: "vib-line1"
+    type: "vibration"
+    topic: "factory/line1/vibration"
+    unit: "mm/s"
+    baseline: 2.5
+    noise_stddev: 0.3
+    drift_per_tick: 0.01
+    min_value: 0.0
+    max_value: 50.0
+
+  - id: "press-line1"
+    type: "pressure"
+    topic: "factory/line1/pressure"
+    unit: "bar"
+    baseline: 5.0
+    noise_stddev: 0.15
+    drift_per_tick: 0.005
+    min_value: 0.0
+    max_value: 15.0
+
+  - id: "hum-line1"
+    type: "humidity"
+    topic: "factory/line1/humidity"
+    unit: "%RH"
+    baseline: 45.0
+    noise_stddev: 1.5
+    drift_per_tick: 0.03
+    min_value: 0.0
+    max_value: 100.0

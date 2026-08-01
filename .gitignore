@@ -1,0 +1,24 @@
+# Env files with real secrets
+.env
+sensor-nodes/.env
+backend/.env
+dashboard/.env
+
+# Broker generated secrets
+broker/certs/*.key
+broker/certs/*.crt
+broker/certs/*.srl
+broker/config/passwd
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+dashboard/node_modules/
+dashboard/dist/
+
+# OS
+.DS_Store
+Thumbs.db

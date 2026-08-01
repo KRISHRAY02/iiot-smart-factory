@@ -1,0 +1,155 @@
+services:
+  mqtt-credentials-init:
+    image: eclipse-mosquitto:2
+    entrypoint: >
+      sh -c "
+      if [ ! -f /mosquitto/config/passwd ]; then
+        mosquitto_passwd -b -c /mosquitto/config/passwd \"$$MQTT_SENSOR_USERNAME\" \"$$MQTT_SENSOR_PASSWORD\" &&
+        mosquitto_passwd -b /mosquitto/config/passwd \"$$MQTT_BACKEND_USERNAME\" \"$$MQTT_BACKEND_PASSWORD\";
+      else
+        echo 'passwd file already exists, skipping';
+      fi &&
+      chmod 644 /mosquitto/config/passwd
+      "
+    environment:
+      MQTT_SENSOR_USERNAME: ${MQTT_SENSOR_USERNAME:-sensor}
+      MQTT_SENSOR_PASSWORD: ${MQTT_SENSOR_PASSWORD:-change-me-sensor-pass}
+      MQTT_BACKEND_USERNAME: ${MQTT_BACKEND_USERNAME:-backend}
+      MQTT_BACKEND_PASSWORD: ${MQTT_BACKEND_PASSWORD:-change-me-backend-pass}
+    volumes:
+      - ./broker/config:/mosquitto/config
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    depends_on:
+      mqtt-credentials-init:
+        condition: service_completed_successfully
+    ports:
+      - "8883:8883"
+    volumes:
+      - ./broker/config:/mosquitto/config
+      - ./broker/certs:/mosquitto/certs:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8883 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUX_INIT_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_INIT_PASSWORD:-adminpassword123}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-iiot}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-factory_data}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-demo-admin-token-change-me}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 8883
+      MQTT_USE_TLS: "true"
+      MQTT_CA_CERT: /certs/ca.crt
+      MQTT_USERNAME: ${MQTT_BACKEND_USERNAME:-backend}
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-change-me-backend-pass}
+      MQTT_TOPICS: "factory/#"
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-demo-admin-token-change-me}
+      INFLUX_ORG: ${INFLUX_ORG:-iiot}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-factory_data}
+      JWT_SECRET: ${JWT_SECRET:-change-me-development-secret-key}
+      DEMO_USERNAME: ${DEMO_USERNAME:-admin}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-admin123}
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8081"
+    volumes:
+      - ./broker/certs:/certs:ro
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+        VITE_WS_URL: ws://localhost:8000/ws
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+
+  sensor-temperature:
+    build: ./sensor-nodes
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      NODE_ID: temp-line1
+      MQTT_SENSOR_USERNAME: ${MQTT_SENSOR_USERNAME:-sensor}
+      MQTT_SENSOR_PASSWORD: ${MQTT_SENSOR_PASSWORD:-change-me-sensor-pass}
+      ANOMALY_PROBABILITY: ${ANOMALY_PROBABILITY:-0.0}
+    volumes:
+      - ./broker/certs:/certs:ro
+    restart: unless-stopped
+
+  sensor-vibration:
+    build: ./sensor-nodes
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      NODE_ID: vib-line1
+      MQTT_SENSOR_USERNAME: ${MQTT_SENSOR_USERNAME:-sensor}
+      MQTT_SENSOR_PASSWORD: ${MQTT_SENSOR_PASSWORD:-change-me-sensor-pass}
+      ANOMALY_PROBABILITY: ${ANOMALY_PROBABILITY:-0.0}
+    volumes:
+      - ./broker/certs:/certs:ro
+    restart: unless-stopped
+
+  sensor-pressure:
+    build: ./sensor-nodes
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      NODE_ID: press-line1
+      MQTT_SENSOR_USERNAME: ${MQTT_SENSOR_USERNAME:-sensor}
+      MQTT_SENSOR_PASSWORD: ${MQTT_SENSOR_PASSWORD:-change-me-sensor-pass}
+      ANOMALY_PROBABILITY: ${ANOMALY_PROBABILITY:-0.0}
+    volumes:
+      - ./broker/certs:/certs:ro
+    restart: unless-stopped
+
+  sensor-humidity:
+    build: ./sensor-nodes
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    environment:
+      NODE_ID: hum-line1
+      MQTT_SENSOR_USERNAME: ${MQTT_SENSOR_USERNAME:-sensor}
+      MQTT_SENSOR_PASSWORD: ${MQTT_SENSOR_PASSWORD:-change-me-sensor-pass}
+      ANOMALY_PROBABILITY: ${ANOMALY_PROBABILITY:-0.0}
+    volumes:
+      - ./broker/certs:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  influxdb-data:

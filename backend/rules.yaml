@@ -1,0 +1,44 @@
+# Threshold rules for the alerting engine. Each rule is evaluated against
+# every incoming reading whose sensor_type matches.
+rules:
+  - sensor_type: temperature
+    condition: "above"
+    threshold: 90.0
+    severity: "critical"
+    message: "Temperature exceeds safe operating limit"
+
+  - sensor_type: temperature
+    condition: "above"
+    threshold: 80.0
+    severity: "warning"
+    message: "Temperature trending high"
+
+  - sensor_type: vibration
+    condition: "above"
+    threshold: 8.0
+    severity: "critical"
+    message: "Excessive vibration detected — possible mechanical fault"
+
+  - sensor_type: pressure
+    condition: "above"
+    threshold: 9.5
+    severity: "critical"
+    message: "Pressure exceeds vessel rating"
+
+  - sensor_type: pressure
+    condition: "below"
+    threshold: 1.0
+    severity: "warning"
+    message: "Pressure below expected operating range"
+
+  - sensor_type: humidity
+    condition: "above"
+    threshold: 80.0
+    severity: "warning"
+    message: "Humidity exceeds recommended range"
+
+  - sensor_type: humidity
+    condition: "below"
+    threshold: 15.0
+    severity: "warning"
+    message: "Humidity below recommended range"

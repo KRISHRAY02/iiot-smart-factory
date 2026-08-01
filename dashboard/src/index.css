@@ -1,0 +1,230 @@
+:root {
+  --blue-900: #0b2c5c;
+  --blue-700: #14509a;
+  --blue-500: #1e6fd9;
+  --blue-100: #e8f1fd;
+  --gray-50: #f7f9fc;
+  --gray-200: #e2e8f0;
+  --gray-600: #5b6472;
+  --white: #ffffff;
+  --danger: #d93025;
+  --warning: #e0a100;
+  --ok: #1a8a4a;
+
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--gray-50);
+  color: #1a2233;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  background: var(--blue-900);
+  color: var(--white);
+  padding: 0.9rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar h1 {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.topbar .status-pill {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-left: 0.5rem;
+}
+
+.status-pill.ok::before {
+  content: "\25CF ";
+  color: #4ade80;
+}
+.status-pill.down::before {
+  content: "\25CF ";
+  color: #f87171;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--white);
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+  flex: 1;
+}
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.card h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.75rem 0;
+  color: var(--blue-900);
+}
+
+.card.span-2 {
+  grid-column: span 2;
+}
+
+.reading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+.reading-row:last-child {
+  border-bottom: none;
+}
+
+.reading-node {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.reading-type {
+  color: var(--gray-600);
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+.reading-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--blue-700);
+}
+.reading-value.anomaly {
+  color: var(--danger);
+}
+
+.trigger-btn {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 5px;
+  border: 1px solid var(--blue-500);
+  background: var(--blue-100);
+  color: var(--blue-700);
+  cursor: pointer;
+}
+.trigger-btn:hover {
+  background: var(--blue-500);
+  color: var(--white);
+}
+
+.alert-item {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 0.85rem;
+}
+.alert-item:last-child {
+  border-bottom: none;
+}
+.severity-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+}
+.severity-badge.critical {
+  background: #fde8e6;
+  color: var(--danger);
+}
+.severity-badge.warning {
+  background: #fff4d6;
+  color: var(--warning);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--blue-900), var(--blue-700));
+}
+
+.login-card {
+  background: var(--white);
+  padding: 2.5rem;
+  border-radius: 14px;
+  width: 320px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.login-card h1 {
+  color: var(--blue-900);
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 0.65rem;
+  background: var(--blue-700);
+  color: var(--white);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.login-card button:hover {
+  background: var(--blue-500);
+}
+
+.login-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.empty-state {
+  color: var(--gray-600);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  text-align: center;
+}
