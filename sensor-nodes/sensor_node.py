@@ -49,6 +49,7 @@ class SensorSimulator:
         self.drift_direction = random.choice([-1, 1])
         self.anomaly_active = False
         self.anomaly_ticks_remaining = 0
+        self.anomaly_mode = "spike"
         self.anomaly_probability = float(os.environ.get("ANOMALY_PROBABILITY", "0.0"))
 
     def _drift(self):
@@ -60,10 +61,19 @@ class SensorSimulator:
     def _clamp(self, value):
         return max(self.node_cfg["min_value"], min(self.node_cfg["max_value"], value))
 
-    def trigger_anomaly(self, duration_ticks=3):
-        log.warning("Anomaly triggered on %s for %d tick(s)", self.node_cfg["id"], duration_ticks)
+    def trigger_anomaly(self, mode="spike", duration_ticks=None):
+        """mode="spike" jumps past the hard static threshold (the old
+        behavior). mode="drift" nudges the value by a few multiples of the
+        sensor's own noise stddev, sustained over more ticks — big enough to
+        blow past a z-score baseline but deliberately kept under the static
+        hard limit, so it demonstrates the statistical detector catching
+        something the threshold check would miss."""
+        if duration_ticks is None:
+            duration_ticks = 3 if mode == "spike" else 12
+        log.warning("Anomaly triggered on %s (mode=%s) for %d tick(s)", self.node_cfg["id"], mode, duration_ticks)
         self.anomaly_active = True
         self.anomaly_ticks_remaining = duration_ticks
+        self.anomaly_mode = mode
 
     def next_reading(self):
         self._drift()
@@ -75,8 +85,11 @@ class SensorSimulator:
                 self.trigger_anomaly()
 
         if self.anomaly_active:
-            spike_magnitude = (self.node_cfg["max_value"] - self.node_cfg["baseline"]) * 0.8
-            reading += spike_magnitude
+            if self.anomaly_mode == "drift":
+                offset = 6 * self.node_cfg["noise_stddev"]
+            else:
+                offset = (self.node_cfg["max_value"] - self.node_cfg["baseline"]) * 0.8
+            reading += offset
             self.anomaly_ticks_remaining -= 1
             if self.anomaly_ticks_remaining <= 0:
                 self.anomaly_active = False
@@ -123,8 +136,14 @@ def build_mqtt_client(config, node_id, simulator):
             log.error("Connection failed with code %s", rc)
 
     def on_message(client, userdata, msg):
-        log.info("Manual anomaly trigger received on %s", msg.topic)
-        simulator.trigger_anomaly()
+        mode = "spike"
+        try:
+            payload = json.loads(msg.payload.decode("utf-8")) if msg.payload else {}
+            mode = payload.get("mode", "spike")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        log.info("Manual anomaly trigger received on %s (mode=%s)", msg.topic, mode)
+        simulator.trigger_anomaly(mode=mode)
 
     client.on_connect = on_connect
     client.on_message = on_message

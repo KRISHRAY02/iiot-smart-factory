@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     demo_password: str = "admin123"
 
     rules_config_path: str = "/app/rules.yaml"
+    assets_db_path: str = "/app/data/assets.db"
+
+    # Statistical anomaly detection
+    baseline_window_size: int = 100
+    baseline_min_points: int = 20
+    stat_z_threshold: float = 3.0
+    stat_alert_cooldown_seconds: int = 30
 
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

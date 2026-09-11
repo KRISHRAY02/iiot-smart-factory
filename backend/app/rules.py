@@ -6,6 +6,7 @@ from typing import Optional
 
 import yaml
 
+from app.baseline import Baseline
 from app.config import settings
 from app.models import Alert, SensorReading
 
@@ -13,6 +14,7 @@ log = logging.getLogger("rules")
 
 _ALERT_COOLDOWN_SECONDS = 30
 _last_fired: dict[tuple, float] = {}
+_last_fired_stat: dict[str, float] = {}
 
 
 def load_rules():
@@ -65,4 +67,42 @@ def evaluate(reading: SensorReading) -> Optional[Alert]:
         severity=rule["severity"],
         message=rule["message"],
         timestamp=datetime.now(timezone.utc).isoformat(),
+        alert_type="threshold_breach",
+    )
+
+
+def evaluate_statistical(reading: SensorReading, stats: Baseline) -> Optional[Alert]:
+    """Return a statistical-anomaly alert if this reading deviates from the
+    node's own rolling baseline by more than the configured z-score
+    threshold. Returns None during cold start (not enough points yet) or
+    when the sensor is too stable for a z-score to be meaningful (stats.z_score
+    is None in both cases), respecting a per-node cooldown."""
+    if stats.z_score is None:
+        return None
+    if abs(stats.z_score) < settings.stat_z_threshold:
+        return None
+
+    now = time.monotonic()
+    if now - _last_fired_stat.get(reading.node_id, 0) < settings.stat_alert_cooldown_seconds:
+        return None
+    _last_fired_stat[reading.node_id] = now
+
+    direction = "above" if stats.z_score > 0 else "below"
+    return Alert(
+        id=str(uuid.uuid4()),
+        node_id=reading.node_id,
+        sensor_type=reading.sensor_type,
+        value=reading.value,
+        threshold=settings.stat_z_threshold,
+        condition=direction,
+        severity="warning",
+        message=(
+            f"{reading.sensor_type} reading {abs(stats.z_score):.1f}σ {direction} normal "
+            f"({stats.mean:.2f} ± {stats.stddev:.2f})"
+        ),
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        alert_type="statistical_anomaly",
+        z_score=stats.z_score,
+        baseline_mean=stats.mean,
+        baseline_stddev=stats.stddev,
     )

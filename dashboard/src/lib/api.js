@@ -15,6 +15,12 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+let unauthorizedHandler = null;
+
+export function onUnauthorized(handler) {
+  unauthorizedHandler = handler;
+}
+
 export async function login(username, password) {
   const body = new URLSearchParams();
   body.set("username", username);
@@ -44,11 +50,13 @@ async function authedFetch(path, options = {}) {
   });
   if (res.status === 401) {
     clearToken();
+    if (unauthorizedHandler) unauthorizedHandler();
     throw new Error("Session expired, please log in again");
   }
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status}`);
   }
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -72,8 +80,36 @@ export function fetchNodes() {
   return authedFetch("/api/readings/nodes");
 }
 
-export function triggerAnomaly(nodeId) {
-  return authedFetch(`/api/control/anomaly/${nodeId}`, { method: "POST" });
+export function triggerAnomaly(nodeId, mode = "spike") {
+  return authedFetch(`/api/control/anomaly/${nodeId}?mode=${mode}`, { method: "POST" });
+}
+
+export function fetchAssets() {
+  return authedFetch("/api/assets");
+}
+
+export function fetchAssetDetail(assetId) {
+  return authedFetch(`/api/assets/${assetId}/detail`);
+}
+
+export function createAsset(payload) {
+  return authedFetch("/api/assets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAsset(assetId, payload) {
+  return authedFetch(`/api/assets/${assetId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAsset(assetId) {
+  return authedFetch(`/api/assets/${assetId}`, { method: "DELETE" });
 }
 
 export function openLiveSocket(onMessage) {

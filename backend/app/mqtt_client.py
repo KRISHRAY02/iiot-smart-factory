@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 from pydantic import ValidationError
 
-from app import influx, rules
+from app import assets_db, baseline, influx, rules
 from app.config import settings
 from app.models import SensorReading
 from app.ws_manager import manager
@@ -16,6 +16,7 @@ log = logging.getLogger("mqtt_client")
 _client: mqtt.Client | None = None
 _connected = False
 _known_nodes: set[str] = set()
+_latest_readings: dict[str, dict] = {}
 
 
 def is_connected() -> bool:
@@ -24,6 +25,14 @@ def is_connected() -> bool:
 
 def known_nodes() -> list[str]:
     return sorted(_known_nodes)
+
+
+def latest_reading(node_id: str) -> dict | None:
+    return _latest_readings.get(node_id)
+
+
+def latest_readings_for(node_ids: list[str]) -> list[dict]:
+    return [_latest_readings[n] for n in node_ids if n in _latest_readings]
 
 
 def _validate_and_stamp(raw_payload: bytes) -> SensorReading | None:
@@ -73,16 +82,41 @@ def _on_message(client, userdata, msg):
 
     _known_nodes.add(reading.node_id)
 
+    stats = baseline.record_and_score(reading.node_id, reading.value)
+    if stats.z_score is not None:
+        log.info(
+            "baseline %s: value=%.3f mean=%.3f stddev=%.3f z=%.2f (n=%d)",
+            reading.node_id,
+            reading.value,
+            stats.mean,
+            stats.stddev,
+            stats.z_score,
+            stats.count,
+        )
+
+    reading_payload = {**reading.model_dump(), "rolling_mean": stats.mean, "rolling_stddev": stats.stddev}
+    _latest_readings[reading.node_id] = reading_payload
+
     try:
-        influx.write_reading(reading)
+        influx.write_reading(reading, rolling_mean=stats.mean, rolling_stddev=stats.stddev)
     except Exception as exc:
         log.error("Failed to write reading to InfluxDB: %s", exc)
 
-    manager.broadcast_threadsafe({"type": "reading", "data": reading.model_dump()})
+    manager.broadcast_threadsafe({"type": "reading", "data": reading_payload})
 
-    alert = rules.evaluate(reading)
-    if alert is not None:
-        log.warning("ALERT: %s", alert.message)
+    asset = assets_db.find_asset_for_node(reading.node_id)
+    if asset is not None and asset.status == "Under Maintenance":
+        return
+
+    fired_alerts = [
+        rules.evaluate(reading),
+        rules.evaluate_statistical(reading, stats),
+    ]
+    for alert in fired_alerts:
+        if alert is None:
+            continue
+        alert.asset_id = asset.asset_id if asset is not None else None
+        log.warning("ALERT [%s]: %s", alert.alert_type, alert.message)
         try:
             influx.write_alert(alert)
         except Exception as exc:

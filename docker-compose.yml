@@ -80,8 +80,10 @@ services:
       DEMO_USERNAME: ${DEMO_USERNAME:-admin}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-admin123}
       CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8081"
+      ASSETS_DB_PATH: /app/data/assets.db
     volumes:
       - ./broker/certs:/certs:ro
+      - assets-data:/app/data
 
   dashboard:
     build:
@@ -153,3 +155,4 @@ services:
 volumes:
   mosquitto-data:
   influxdb-data:
+  assets-data:
