@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AlertHistoryPage from "./components/AlertHistoryPage";
 import AlertsPanel from "./components/AlertsPanel";
 import AssetDetail from "./components/AssetDetail";
 import AssetsPage from "./components/AssetsPage";
@@ -16,7 +17,7 @@ import {
   openLiveSocket,
 } from "./lib/api";
 
-function DashboardView({ readings, alerts, refreshKey, assetsByNode }) {
+function DashboardView({ readings, alerts, setAlerts, refreshKey, assetsByNode, assetsById }) {
   return (
     <div className="dashboard-grid">
       <div className="card">
@@ -25,7 +26,7 @@ function DashboardView({ readings, alerts, refreshKey, assetsByNode }) {
       </div>
       <div className="card">
         <h2>Active Alerts</h2>
-        <AlertsPanel alerts={alerts} />
+        <AlertsPanel alerts={alerts} assetsById={assetsById} onChange={setAlerts} />
       </div>
       <div className="card span-2">
         <h2>Historical Trend</h2>
@@ -46,7 +47,7 @@ function Shell({ onLogout }) {
   const [selectedAssetId, setSelectedAssetId] = useState(null);
 
   const loadAlerts = useCallback(() => {
-    fetchAlerts(50).then(setAlerts).catch(() => {});
+    fetchAlerts().then(setAlerts).catch(() => {});
   }, []);
 
   const loadStatus = useCallback(() => {
@@ -94,6 +95,14 @@ function Shell({ onLogout }) {
     return map;
   }, [assets]);
 
+  const assetsById = useMemo(() => {
+    const map = {};
+    for (const asset of assets) {
+      map[asset.asset_id] = asset;
+    }
+    return map;
+  }, [assets]);
+
   function handleLogout() {
     clearToken();
     onLogout();
@@ -128,6 +137,12 @@ function Shell({ onLogout }) {
             >
               Assets
             </button>
+            <button
+              className={`tab-btn ${view === "alert-history" ? "active" : ""}`}
+              onClick={() => setView("alert-history")}
+            >
+              Alert History
+            </button>
           </nav>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -142,14 +157,17 @@ function Shell({ onLogout }) {
         <DashboardView
           readings={readings}
           alerts={alerts}
+          setAlerts={setAlerts}
           refreshKey={refreshKey}
           assetsByNode={assetsByNode}
+          assetsById={assetsById}
         />
       )}
       {view === "assets" && <AssetsPage assets={assets} onSelect={openAsset} />}
       {view === "asset-detail" && selectedAssetId && (
         <AssetDetail assetId={selectedAssetId} onBack={backToAssets} />
       )}
+      {view === "alert-history" && <AlertHistoryPage assets={assets} />}
     </div>
   );
 }

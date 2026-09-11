@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import assets_db, influx, mqtt_client
+from app import alerts_db, assets_db, influx, mqtt_client
 from app.config import settings
 from app.routers import (
     alerts_router,
@@ -28,6 +28,7 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     manager.bind_loop(asyncio.get_running_loop())
     assets_db.connect()
+    alerts_db.connect()
     influx.connect()
     mqtt_client.start()
     yield

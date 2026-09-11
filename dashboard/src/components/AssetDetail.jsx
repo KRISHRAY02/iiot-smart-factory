@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAssetDetail, updateAsset } from "../lib/api";
-import AlertsPanel from "./AlertsPanel";
+import AlertHistoryTable from "./AlertHistoryTable";
 import HistoryChart from "./HistoryChart";
 import LiveReadings from "./LiveReadings";
 import StatusBadge from "./StatusBadge";
@@ -63,7 +63,7 @@ export default function AssetDetail({ assetId, onBack }) {
     );
   }
 
-  const { asset, live_readings, recent_alerts } = detail;
+  const { asset, live_readings, alert_history } = detail;
   const readingsByNode = Object.fromEntries(live_readings.map((r) => [r.node_id, r]));
 
   return (
@@ -117,17 +117,17 @@ export default function AssetDetail({ assetId, onBack }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card span-2">
         <h2>Live Sensor Readings</h2>
         <LiveReadings readings={readingsByNode} />
-      </div>
-      <div className="card">
-        <h2>Alert History</h2>
-        <AlertsPanel alerts={recent_alerts} />
       </div>
       <div className="card span-2">
         <h2>Historical Trend</h2>
         <HistoryChart nodeOptions={asset.linked_sensor_nodes} />
+      </div>
+      <div className="card span-2">
+        <h2>Alert History</h2>
+        <AlertHistoryTable alerts={alert_history} showAssetColumn={false} />
       </div>
     </div>
   );

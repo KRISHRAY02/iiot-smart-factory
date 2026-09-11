@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from app import assets_db, influx, mqtt_client
+from app import alerts_db, assets_db, mqtt_client
 from app.auth import get_current_user
 from app.models import ASSET_STATUSES, AssetCreate, AssetUpdate
 
@@ -55,5 +55,5 @@ async def asset_detail(asset_id: str, _user: str = Depends(get_current_user)):
     return {
         "asset": asset,
         "live_readings": mqtt_client.latest_readings_for(asset.linked_sensor_nodes),
-        "recent_alerts": influx.query_recent_alerts(limit=50, asset_id=asset_id),
+        "alert_history": alerts_db.list_history(asset_id=asset_id, limit=50),
     }

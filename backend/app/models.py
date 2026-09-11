@@ -29,6 +29,37 @@ class Alert(BaseModel):
     baseline_stddev: Optional[float] = None
 
 
+ALERT_STATUSES = ("active", "acknowledged", "resolved")
+ALERT_SEVERITIES = ("info", "warning", "critical")
+
+
+class AlertRecord(BaseModel):
+    id: str
+    node_id: str
+    asset_id: Optional[str] = None
+    sensor_type: str
+    alert_type: str
+    severity: str
+    value: float
+    threshold: Optional[float] = None
+    condition: Optional[str] = None
+    message: str
+    z_score: Optional[float] = None
+    baseline_mean: Optional[float] = None
+    baseline_stddev: Optional[float] = None
+    status: str = "active"
+    created_at: str
+    acknowledged_at: Optional[str] = None
+    acknowledged_by: Optional[str] = None
+    resolved_at: Optional[str] = None
+    resolved_by: Optional[str] = None
+    resolution_note: Optional[str] = None
+
+
+class ResolveAlertRequest(BaseModel):
+    resolution_note: Optional[str] = None
+
+
 ASSET_STATUSES = ("Operational", "Under Maintenance", "Offline", "Decommissioned")
 
 

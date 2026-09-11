@@ -64,8 +64,36 @@ export function fetchStatus() {
   return authedFetch("/api/status");
 }
 
-export function fetchAlerts(limit = 100) {
-  return authedFetch(`/api/alerts?limit=${limit}`);
+export function fetchAlerts(assetId) {
+  const params = assetId ? `?asset_id=${assetId}` : "";
+  return authedFetch(`/api/alerts${params}`);
+}
+
+export function acknowledgeAlert(alertId) {
+  return authedFetch(`/api/alerts/${alertId}/acknowledge`, { method: "POST" });
+}
+
+export function resolveAlert(alertId, resolutionNote) {
+  return authedFetch(`/api/alerts/${alertId}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resolution_note: resolutionNote || null }),
+  });
+}
+
+export function fetchAlertHistory({ status, severity, assetId, start, end, limit = 200 } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (severity) params.set("severity", severity);
+  if (assetId) params.set("asset_id", assetId);
+  if (start) params.set("start", start);
+  if (end) params.set("end", end);
+  params.set("limit", limit);
+  return authedFetch(`/api/alerts/history?${params.toString()}`);
+}
+
+export function fetchAlertSummary() {
+  return authedFetch("/api/alerts/summary");
 }
 
 export function fetchHistory({ nodeId, sensorType, hours = 1 } = {}) {

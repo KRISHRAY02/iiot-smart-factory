@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 from pydantic import ValidationError
 
-from app import assets_db, baseline, influx, rules
+from app import alerts_db, assets_db, baseline, influx, rules
 from app.config import settings
 from app.models import SensorReading
 from app.ws_manager import manager
@@ -105,8 +105,7 @@ def _on_message(client, userdata, msg):
     manager.broadcast_threadsafe({"type": "reading", "data": reading_payload})
 
     asset = assets_db.find_asset_for_node(reading.node_id)
-    if asset is not None and asset.status == "Under Maintenance":
-        return
+    under_maintenance = asset is not None and asset.status == "Under Maintenance"
 
     fired_alerts = [
         rules.evaluate(reading),
@@ -116,12 +115,20 @@ def _on_message(client, userdata, msg):
         if alert is None:
             continue
         alert.asset_id = asset.asset_id if asset is not None else None
-        log.warning("ALERT [%s]: %s", alert.alert_type, alert.message)
+
+        auto_resolved_reason = "Suppressed — asset under maintenance" if under_maintenance else None
         try:
-            influx.write_alert(alert)
+            record = alerts_db.create_alert(alert, auto_resolved_reason=auto_resolved_reason)
         except Exception as exc:
-            log.error("Failed to write alert to InfluxDB: %s", exc)
-        manager.broadcast_threadsafe({"type": "alert", "data": alert.model_dump()})
+            log.error("Failed to write alert to alerts DB: %s", exc)
+            continue
+
+        if under_maintenance:
+            log.info("ALERT SUPPRESSED [%s]: %s (asset under maintenance)", alert.alert_type, alert.message)
+            continue
+
+        log.warning("ALERT [%s]: %s", alert.alert_type, alert.message)
+        manager.broadcast_threadsafe({"type": "alert", "data": record.model_dump()})
 
 
 def start():
