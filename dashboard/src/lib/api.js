@@ -112,6 +112,15 @@ export function triggerAnomaly(nodeId, mode = "spike") {
   return authedFetch(`/api/control/anomaly/${nodeId}?mode=${mode}`, { method: "POST" });
 }
 
+export function triggerOffline(nodeId, action = "go_offline", durationSeconds = 30) {
+  const params = new URLSearchParams({ action, duration_seconds: durationSeconds });
+  return authedFetch(`/api/control/offline/${nodeId}?${params.toString()}`, { method: "POST" });
+}
+
+export function fetchNodeHealth() {
+  return authedFetch("/api/nodes/health");
+}
+
 export function fetchAssets() {
   return authedFetch("/api/assets");
 }
@@ -138,6 +147,41 @@ export function updateAsset(assetId, payload) {
 
 export function deleteAsset(assetId) {
   return authedFetch(`/api/assets/${assetId}`, { method: "DELETE" });
+}
+
+async function downloadCsv(path, params) {
+  const token = getToken();
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${API_BASE_URL}${path}?${qs}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401) {
+    clearToken();
+    if (unauthorizedHandler) unauthorizedHandler();
+    throw new Error("Session expired, please log in again");
+  }
+  if (!res.ok) {
+    let message = `Export failed: ${res.status}`;
+    try {
+      const data = await res.json();
+      if (data?.detail) message = data.detail;
+    } catch {
+      // backend error body wasn't JSON; fall back to the generic message
+    }
+    throw new Error(message);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  return { blob, filename: match ? match[1] : "export.csv" };
+}
+
+export function exportReadingsCsv(params) {
+  return downloadCsv("/api/export/readings.csv", params);
+}
+
+export function exportAlertsCsv(params) {
+  return downloadCsv("/api/export/alerts.csv", params);
 }
 
 export function openLiveSocket(onMessage) {

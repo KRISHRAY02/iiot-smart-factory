@@ -27,6 +27,13 @@ class Settings(BaseSettings):
 
     rules_config_path: str = "/app/rules.yaml"
     assets_db_path: str = "/app/data/assets.db"
+    sensor_nodes_config_path: str = "/app/sensor_nodes_config.yaml"
+
+    # Node health / heartbeat monitoring — fallback defaults, overridable via
+    # the `node_health:` section of rules.yaml.
+    node_health_stale_multiplier: float = 2.0
+    node_health_offline_multiplier: float = 4.0
+    node_health_check_interval_seconds: int = 5
 
     # Statistical anomaly detection
     baseline_window_size: int = 100

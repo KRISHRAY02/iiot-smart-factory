@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 from pydantic import ValidationError
 
-from app import alerts_db, assets_db, baseline, influx, rules
+from app import alerts_db, assets_db, baseline, influx, node_health, rules
 from app.config import settings
 from app.models import SensorReading
 from app.ws_manager import manager
@@ -81,6 +81,7 @@ def _on_message(client, userdata, msg):
         return
 
     _known_nodes.add(reading.node_id)
+    node_health.record_seen(reading.node_id)
 
     stats = baseline.record_and_score(reading.node_id, reading.value)
     if stats.z_score is not None:

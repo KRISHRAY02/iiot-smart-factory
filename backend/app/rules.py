@@ -22,6 +22,20 @@ def load_rules():
         return yaml.safe_load(f)["rules"]
 
 
+def load_node_health_config() -> dict:
+    """Node health thresholds, expressed as multiples of each node's publish
+    interval. The `node_health:` section of rules.yaml overrides the env/
+    settings defaults, so either can be used to tune it."""
+    with open(settings.rules_config_path, "r") as f:
+        data = yaml.safe_load(f)
+    cfg = data.get("node_health") or {}
+    return {
+        "stale_multiplier": float(cfg.get("stale_multiplier", settings.node_health_stale_multiplier)),
+        "offline_multiplier": float(cfg.get("offline_multiplier", settings.node_health_offline_multiplier)),
+        "check_interval_seconds": int(cfg.get("check_interval_seconds", settings.node_health_check_interval_seconds)),
+    }
+
+
 _rules = load_rules()
 
 

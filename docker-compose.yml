@@ -81,9 +81,11 @@ services:
       DEMO_PASSWORD: ${DEMO_PASSWORD:-admin123}
       CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8081"
       ASSETS_DB_PATH: /app/data/assets.db
+      SENSOR_NODES_CONFIG_PATH: /app/sensor_nodes_config.yaml
     volumes:
       - ./broker/certs:/certs:ro
       - assets-data:/app/data
+      - ./sensor-nodes/config.yaml:/app/sensor_nodes_config.yaml:ro
 
   dashboard:
     build:

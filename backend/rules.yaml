@@ -42,3 +42,10 @@ rules:
     threshold: 15.0
     severity: "warning"
     message: "Humidity below recommended range"
+
+# Node health / heartbeat monitoring thresholds, expressed as multiples of
+# each node's own publish interval (from sensor-nodes/config.yaml).
+node_health:
+  stale_multiplier: 2.0
+  offline_multiplier: 4.0
+  check_interval_seconds: 5

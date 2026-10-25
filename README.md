@@ -104,6 +104,19 @@ explanation and [docs/SECURITY.md](docs/SECURITY.md) for the security model.
 6. Check the **status pills** in the top bar to see MQTT/database
    connectivity and the live-feed WebSocket state.
 
+### Node health and CSV export
+
+Two more things worth trying:
+
+- **Node health monitoring** — click **Go offline** next to any sensor to
+  make it stop publishing. Its health dot goes green → amber (stale) →
+  red (offline), the dashboard's "N/4 nodes online" summary updates, and
+  an info-level "Node Offline" alert appears — then auto-resolves once the
+  node resumes. See [docs/DEMO.md](docs/DEMO.md) for the full walkthrough.
+- **CSV export** — use the **Export** panel (on the dashboard or Alert
+  History page) to download readings or alerts for a chosen time range as
+  a CSV, e.g. to attach to a maintenance report.
+
 ## Project structure
 
 ```
@@ -128,3 +141,16 @@ Each of `sensor-nodes/`, `backend/`, and `dashboard/` has its own
 `requirements.txt` / `package.json` and can be run locally against a broker
 and database you provide — see the `.env.example` in each directory for the
 variables it expects.
+
+## Backend tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest
+```
+
+Covers the node-health state machine (online/stale/offline thresholds, the
+no-duplicate-alert rule, and maintenance suppression) and the CSV export
+endpoints (column order, escaping, formula-injection guard, range/row-count
+validation).

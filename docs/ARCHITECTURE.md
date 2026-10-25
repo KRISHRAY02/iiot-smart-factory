@@ -80,8 +80,36 @@ JWT bearer token):
   client count, for the dashboard's status bar.
 - `POST /api/control/anomaly/{node_id}` — publishes a control message that
   the target sensor node subscribes to.
-- `WS /ws?token=...` — live stream of `{"type": "reading" | "alert", "data": ...}`
-  frames.
+- `POST /api/control/offline/{node_id}` — publishes a control message that
+  makes the target node stop (or resume) publishing, for demoing node
+  health.
+- `GET /api/nodes/health` — per-node `online`/`stale`/`offline` state, last
+  seen time, and seconds since last seen.
+- `GET /api/export/readings.csv` / `GET /api/export/alerts.csv` — streamed
+  CSV downloads for a time range, with optional node/asset/severity
+  filters.
+- `WS /ws?token=...` — live stream of
+  `{"type": "reading" | "alert" | "node_health", "data": ...}` frames.
+
+### Node health / heartbeat monitoring
+
+A background thread (`app/node_health.py`) polls every
+`check_interval_seconds` (default 5s, see `backend/rules.yaml`'s
+`node_health:` section). Each node's state is purely a function of how long
+it's been since its last reading, relative to its own publish interval
+(from `sensor-nodes/config.yaml`):
+
+- **online** — last seen within `stale_multiplier` × interval (default 2×)
+- **stale** — between `stale_multiplier` and `offline_multiplier` × interval
+- **offline** — beyond `offline_multiplier` × interval (default 4×), or
+  never seen
+
+`last_seen` is persisted to the same sqlite file as assets/alerts
+(`node_health` table), so a backend restart rehydrates state instead of
+marking every node offline until its next reading. An offline transition
+raises an `info`/`node_offline` alert (suppressed, but still logged to
+history, while the linked asset is "Under Maintenance"); coming back online
+auto-resolves it as `resolved_by="system"`.
 
 ## 4. Application Layer (`/dashboard`)
 

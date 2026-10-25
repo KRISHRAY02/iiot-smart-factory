@@ -114,6 +114,18 @@ class LoginRequest(BaseModel):
     password: str
 
 
+NODE_HEALTH_STATES = ("online", "stale", "offline")
+
+
+class NodeHealthStatus(BaseModel):
+    node_id: str
+    asset_name: Optional[str] = None
+    sensor_type: Optional[str] = None
+    state: str
+    last_seen: Optional[str] = None
+    seconds_since_last_seen: Optional[float] = None
+
+
 class StatusResponse(BaseModel):
     mqtt_connected: bool
     influx_connected: bool

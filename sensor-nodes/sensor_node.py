@@ -51,6 +51,7 @@ class SensorSimulator:
         self.anomaly_ticks_remaining = 0
         self.anomaly_mode = "spike"
         self.anomaly_probability = float(os.environ.get("ANOMALY_PROBABILITY", "0.0"))
+        self.offline_until = None
 
     def _drift(self):
         # Slow random-walk drift, occasionally reversing direction.
@@ -74,6 +75,26 @@ class SensorSimulator:
         self.anomaly_active = True
         self.anomaly_ticks_remaining = duration_ticks
         self.anomaly_mode = mode
+
+    def go_offline(self, duration_seconds=30):
+        """Stops publishing for ~duration_seconds, or indefinitely (until
+        resume()) if duration_seconds is falsy — demos node-health detection
+        on demand."""
+        log.warning("Node %s going offline (simulated) for %ss", self.node_cfg["id"], duration_seconds)
+        self.offline_until = time.monotonic() + duration_seconds if duration_seconds else float("inf")
+
+    def resume(self):
+        if self.offline_until is not None:
+            log.warning("Node %s resuming publishing (simulated)", self.node_cfg["id"])
+        self.offline_until = None
+
+    def is_offline(self):
+        if self.offline_until is None:
+            return False
+        if time.monotonic() >= self.offline_until:
+            self.offline_until = None
+            return False
+        return True
 
     def next_reading(self):
         self._drift()
@@ -126,22 +147,35 @@ def build_mqtt_client(config, node_id, simulator):
         # which matches the docker-compose service name used as broker.host.
         client.tls_insecure_set(False)
 
-    control_topic = f"factory/control/anomaly/{node_id}"
+    anomaly_topic = f"factory/control/anomaly/{node_id}"
+    offline_topic = f"factory/control/offline/{node_id}"
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             log.info("Connected to broker as %s", node_id)
-            client.subscribe(control_topic)
+            client.subscribe(anomaly_topic)
+            client.subscribe(offline_topic)
         else:
             log.error("Connection failed with code %s", rc)
 
     def on_message(client, userdata, msg):
-        mode = "spike"
         try:
             payload = json.loads(msg.payload.decode("utf-8")) if msg.payload else {}
-            mode = payload.get("mode", "spike")
         except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
+            payload = {}
+
+        if msg.topic == offline_topic:
+            action = payload.get("action", "go_offline")
+            if action == "resume":
+                log.info("Manual resume received on %s", msg.topic)
+                simulator.resume()
+            else:
+                duration = payload.get("duration_seconds", 30)
+                log.info("Manual offline trigger received on %s (duration=%ss)", msg.topic, duration)
+                simulator.go_offline(duration_seconds=duration)
+            return
+
+        mode = payload.get("mode", "spike")
         log.info("Manual anomaly trigger received on %s (mode=%s)", msg.topic, mode)
         simulator.trigger_anomaly(mode=mode)
 
@@ -180,6 +214,10 @@ def main():
     topic = node_cfg["topic"]
     try:
         while True:
+            if simulator.is_offline():
+                log.info("Node %s is offline (simulated) — skipping publish", node_id)
+                time.sleep(interval)
+                continue
             reading = simulator.payload()
             client.publish(topic, json.dumps(reading), qos=1)
             log.info("Published to %s: %s", topic, reading)

@@ -165,6 +165,33 @@ def list_open(asset_id: Optional[str] = None) -> list[AlertRecord]:
     return [_row_to_record(r) for r in rows]
 
 
+def _history_where(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    asset_id: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+) -> tuple[str, list]:
+    clauses = ["1=1"]
+    params: list = []
+    if status:
+        clauses.append("status = ?")
+        params.append(status)
+    if severity:
+        clauses.append("severity = ?")
+        params.append(severity)
+    if asset_id:
+        clauses.append("asset_id = ?")
+        params.append(asset_id)
+    if start:
+        clauses.append("created_at >= ?")
+        params.append(start)
+    if end:
+        clauses.append("created_at <= ?")
+        params.append(end)
+    return " AND ".join(clauses), params
+
+
 def list_history(
     status: Optional[str] = None,
     severity: Optional[str] = None,
@@ -173,27 +200,43 @@ def list_history(
     end: Optional[str] = None,
     limit: int = 200,
 ) -> list[AlertRecord]:
-    query = "SELECT * FROM alerts WHERE 1=1"
-    params: list = []
-    if status:
-        query += " AND status = ?"
-        params.append(status)
-    if severity:
-        query += " AND severity = ?"
-        params.append(severity)
-    if asset_id:
-        query += " AND asset_id = ?"
-        params.append(asset_id)
-    if start:
-        query += " AND created_at >= ?"
-        params.append(start)
-    if end:
-        query += " AND created_at <= ?"
-        params.append(end)
-    query += " ORDER BY created_at DESC LIMIT ?"
-    params.append(limit)
-    rows = _conn.execute(query, params).fetchall()
+    where, params = _history_where(status, severity, asset_id, start, end)
+    rows = _conn.execute(
+        f"SELECT * FROM alerts WHERE {where} ORDER BY created_at DESC LIMIT ?", params + [limit]
+    ).fetchall()
     return [_row_to_record(r) for r in rows]
+
+
+def count_history(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    asset_id: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+) -> int:
+    where, params = _history_where(status, severity, asset_id, start, end)
+    row = _conn.execute(f"SELECT COUNT(*) AS c FROM alerts WHERE {where}", params).fetchone()
+    return row["c"]
+
+
+def stream_history(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    asset_id: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    chunk_size: int = 500,
+):
+    """Yields AlertRecords lazily off a server-side cursor, for CSV export
+    without materializing the whole result set in memory."""
+    where, params = _history_where(status, severity, asset_id, start, end)
+    cursor = _conn.execute(f"SELECT * FROM alerts WHERE {where} ORDER BY created_at ASC", params)
+    while True:
+        rows = cursor.fetchmany(chunk_size)
+        if not rows:
+            break
+        for row in rows:
+            yield _row_to_record(row)
 
 
 def summary_stats() -> dict:

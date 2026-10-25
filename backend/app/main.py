@@ -5,13 +5,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import alerts_db, assets_db, influx, mqtt_client
+from app import alerts_db, assets_db, influx, mqtt_client, node_health, node_health_db
 from app.config import settings
 from app.routers import (
     alerts_router,
     assets_router,
     auth_router,
     control_router,
+    export_router,
+    nodes_router,
     readings_router,
     status_router,
     ws_router,
@@ -29,9 +31,12 @@ async def lifespan(app: FastAPI):
     manager.bind_loop(asyncio.get_running_loop())
     assets_db.connect()
     alerts_db.connect()
+    node_health_db.connect()
     influx.connect()
     mqtt_client.start()
+    node_health.start()
     yield
+    node_health.stop()
     mqtt_client.stop()
 
 
@@ -51,6 +56,8 @@ app.include_router(readings_router.router)
 app.include_router(alerts_router.router)
 app.include_router(status_router.router)
 app.include_router(control_router.router)
+app.include_router(nodes_router.router)
+app.include_router(export_router.router)
 app.include_router(ws_router.router)
 
 

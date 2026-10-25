@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchAlertHistory, fetchAlertSummary } from "../lib/api";
 import { fmtDuration } from "../lib/format";
 import AlertHistoryTable from "./AlertHistoryTable";
+import ExportPanel from "./ExportPanel";
 
 const STATUS_OPTIONS = ["", "active", "acknowledged", "resolved"];
 const SEVERITY_OPTIONS = ["", "critical", "warning", "info"];
@@ -108,6 +109,11 @@ export default function AlertHistoryPage({ assets }) {
       ) : (
         <AlertHistoryTable alerts={rows} assetsById={assetsById} loading={loading} />
       )}
+
+      <div className="card" style={{ marginTop: "1.25rem" }}>
+        <h2>Export</h2>
+        <ExportPanel assets={assets} defaultKind="alerts" />
+      </div>
     </div>
   );
 }

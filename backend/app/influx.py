@@ -82,6 +82,54 @@ def query_history(node_id: Optional[str], sensor_type: Optional[str], hours: int
     return results
 
 
+def _node_ids_filter_clause(node_ids: Optional[list[str]]) -> str:
+    if not node_ids:
+        return ""
+    if len(node_ids) == 1:
+        return f'|> filter(fn: (r) => r["node_id"] == "{node_ids[0]}")'
+    conditions = " or ".join(f'r["node_id"] == "{n}"' for n in node_ids)
+    return f"|> filter(fn: (r) => {conditions})"
+
+
+def count_range(start_rfc3339: str, end_rfc3339: str, node_ids: Optional[list[str]] = None) -> int:
+    filter_clause = _node_ids_filter_clause(node_ids)
+    flux = f'''
+    from(bucket: "{settings.influx_bucket}")
+      |> range(start: {start_rfc3339}, stop: {end_rfc3339})
+      |> filter(fn: (r) => r["_measurement"] == "sensor_reading")
+      |> filter(fn: (r) => r["_field"] == "value")
+      {filter_clause}
+      |> count()
+    '''
+    tables = _query_api.query(flux)
+    total = 0
+    for table in tables:
+        for record in table.records:
+            total += record.get_value()
+    return total
+
+
+def stream_range(start_rfc3339: str, end_rfc3339: str, node_ids: Optional[list[str]] = None):
+    """Streams readings for CSV export via the InfluxDB client's native
+    streaming query API, instead of materializing the whole result set."""
+    filter_clause = _node_ids_filter_clause(node_ids)
+    flux = f'''
+    from(bucket: "{settings.influx_bucket}")
+      |> range(start: {start_rfc3339}, stop: {end_rfc3339})
+      |> filter(fn: (r) => r["_measurement"] == "sensor_reading")
+      |> filter(fn: (r) => r["_field"] == "value")
+      {filter_clause}
+      |> sort(columns: ["_time"])
+    '''
+    for record in _query_api.query_stream(flux):
+        yield {
+            "node_id": record.values.get("node_id"),
+            "sensor_type": record.values.get("sensor_type"),
+            "value": record.get_value(),
+            "timestamp": record.get_time().isoformat(),
+        }
+
+
 def count_readings(node_id: Optional[str], hours: int) -> int:
     filter_clause = f'|> filter(fn: (r) => r["node_id"] == "{node_id}")' if node_id else ""
     flux = f'''
